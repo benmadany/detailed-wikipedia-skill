@@ -2,7 +2,7 @@
 # Author: Ben Madany
 
 
-from HTMLParser import HTMLParser
+from bs4 import BeautifulSoup
 import requests
 import re
 
@@ -31,10 +31,12 @@ def log_msg(msg, error=0):
     print("Error:\n------------\n" if error else "Info:\n------------\n" + msg + "\n------------")
 
 
-# Utility method to strip extra newlines from text, remove references and links (text surrounded by '[]' or lines beginning with '^'), and remove lines that do not end with '.'
+# Utility method to strip extra newlines from text, remove references and links (text surrounded by '[]' or lines beginning with '^'), and remove parentheticals that contain removed references
 def clean_text(text):
-    text = re.sub('(\[.*\])|(^\^.*$)|(^.[^\.]*$)', '', text, flags=re.MULTILINE)
+    #log_msg("Before cleaning:\n" + text)
+    text = re.sub('(^\^.*$)|(\([^\)]*\[[^\]]*\][^\)]*\)+)|(\[[^\]]*\]\([^\)]*\))|(\[[^\]]*\])', '', text, flags=re.MULTILINE)
     text = re.sub('(\n{2,})', '\n', text)
+    #log_msg("After cleaning:\n" + text)
     return text
 
 
@@ -106,9 +108,9 @@ def get_content(page, section=None, count=0):
 
     content = ""
     if section is not None:
-        content = strip_tags(results_json['parse']['text']['*'])
+        content = remove_html_and_captions(results_json['parse']['text']['*'])
     else:
-        content = strip_tags(results_json['query']['pages'][results_json['query']['pages'].keys()[0]]['extract'])
+        content = remove_html_and_captions(results_json['query']['pages'][results_json['query']['pages'].keys()[0]]['extract'])
 
     return clean_text(content)
 
@@ -125,19 +127,9 @@ def send_request(params):
     return results_json
 
 
-# Class and method to strip html tags from text, from StackOverflow: https://stackoverflow.com/questions/753052/strip-html-from-strings-in-python
-class MLStripper(HTMLParser):
-    def __init__(self):
-        self.reset()
-        self.fed = []
-    def handle_data(self, d):
-        self.fed.append(d)
-    def get_data(self):
-        return ''.join(self.fed)
-
-
-# Class and method to strip html tags from text, from StackOverflow: https://stackoverflow.com/questions/753052/strip-html-from-strings-in-python
-def strip_tags(html):
-    s = MLStripper()
-    s.feed(html)
-    return s.get_data()
+# Uses BeautifulSoup to remove html tags and divs that contain captions or navigation hatnotes since they shouldn't be read
+def remove_html_and_captions(html):
+    soup = BeautifulSoup(html, 'lxml')
+    for div in soup.find_all('div', class_=re.compile('(.*caption.*)|(hatnote navigation-not-searchable)')):
+        div.decompose()
+    return soup.text
