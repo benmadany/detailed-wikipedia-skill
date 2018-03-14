@@ -70,7 +70,7 @@ def prefix_search(pssearch):
     return top_result
 
 
-# Request parse action with the 'sections' property specified, returns a list of tuples containing all the sub-headings and their indexes of an article
+# Request parse action with the 'sections' property specified, returns a list of tuples containing all the sub-headings, their indexes, and their depth of an article
 def parse_sections(page):
     params = default_params()
     params['action'] = 'parse'
@@ -82,7 +82,7 @@ def parse_sections(page):
     if 'error' in results_json:
         raise GenericWikipediaException(results_json['error']['info'])
 
-    sections = ((section['line'], section['index']) for section in results_json['parse']['sections'])
+    sections = ((section['line'], section['index'], section['toclevel']) for section in results_json['parse']['sections'])
 
     return list(sections)
 
@@ -130,6 +130,6 @@ def send_request(params):
 # Uses BeautifulSoup to remove html tags and divs that contain captions or navigation hatnotes since they shouldn't be read
 def remove_html_and_captions(html):
     soup = BeautifulSoup(html, 'lxml')
-    for div in soup.find_all('div', class_=re.compile('(.*caption.*)|(hatnote navigation-not-searchable)')):
+    for div in soup.find_all('div', class_=re.compile('(.*caption.*)|(hatnote navigation-not-searchable)|(toc)')):
         div.decompose()
     return soup.text
