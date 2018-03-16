@@ -1,6 +1,7 @@
 # Detailed Wikipedia Skill
 # Author: Ben Madany
 
+
 import wiki_requests as wiki
 from traceback import format_exc
 
@@ -26,8 +27,9 @@ def request_article(article):
         categories = wiki.parse_sections(article)
         for category in categories:
             subheading, index, depth = category
-            print(subheading + " at " + str(index) + " with depth " + str(depth))
-        return (summary, categories)
+        results = (summary, categories)
+        print(results)
+        return results
     except wiki.GenericWikipediaException as wiki_error:
         print("Wikipedia Exception: " + wiki_error)
     except:

@@ -4,6 +4,7 @@
 
 from bs4 import BeautifulSoup
 import requests
+import sys
 import re
 
 
@@ -23,7 +24,26 @@ class GenericWikipediaException(Exception):
         return "The following error occured: {0}".format(self.error)
 
     def __str__(self):
-        return self.__unicode__().encode('utf8')
+        if sys.version_info > (3,0):
+            return self.__unicode__()
+        else:
+            return self.__unicode__().encode('utf8')
+
+
+# Exception raised when no search suggestions are available
+class PageNotFoundException(Exception):
+
+    def __init__(self, article):
+        self.article = article
+
+    def __unicode__(self):
+        return "Could not find a page suggestion for the input: {0}".format(self.article)
+
+    def __str__(self):
+        if sys.version_info > (3,0):
+            return self.__unicode__()
+        else:
+            return self.__unicode__().encode('utf8')
 
 
 # Logging wrapper
@@ -64,6 +84,8 @@ def prefix_search(pssearch):
 
     if 'error' in results_json:
         raise GenericWikipediaException(results_json['error']['info'])
+    if not results_json['query']['prefixsearch']:
+        raise PageNotFoundException(pssearch)
 
     top_result = results_json['query']['prefixsearch'][0]['title']
 
@@ -110,7 +132,7 @@ def get_content(page, section=None, count=0):
     if section is not None:
         content = remove_html_and_captions(results_json['parse']['text']['*'])
     else:
-        content = remove_html_and_captions(results_json['query']['pages'][results_json['query']['pages'].keys()[0]]['extract'])
+        content = remove_html_and_captions(results_json['query']['pages'][list(results_json['query']['pages'])[0]]['extract'])
 
     return clean_text(content)
 
