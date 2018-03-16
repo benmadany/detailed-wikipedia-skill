@@ -3,7 +3,10 @@
 
 
 from bs4 import BeautifulSoup
-import requests
+try:
+    import requests
+except:
+    from botocore.vendored import requests
 import sys
 import re
 
