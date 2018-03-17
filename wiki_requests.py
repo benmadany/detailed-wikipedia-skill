@@ -49,17 +49,10 @@ class PageNotFoundException(Exception):
             return self.__unicode__().encode('utf8')
 
 
-# Logging wrapper
-def log_msg(msg, error=0):
-    print("Error:\n------------\n" if error else "Info:\n------------\n" + msg + "\n------------")
-
-
 # Utility method to strip extra newlines from text, remove references and links (text surrounded by '[]' or lines beginning with '^'), and remove parentheticals that contain removed references
 def clean_text(text):
-    #log_msg("Before cleaning:\n" + text)
     text = re.sub('(^\^.*$)|(\([^\)]*\[[^\]]*\][^\)]*\)+)|(\[[^\]]*\]\([^\)]*\))|(\[[^\]]*\])', '', text, flags=re.MULTILINE)
     text = re.sub('(\n{2,})', '\n', text)
-    #log_msg("After cleaning:\n" + text)
     return text
 
 
@@ -145,10 +138,10 @@ def send_request(params):
     headers = default_headers()
 
     global API_URL
-    log_msg("Sending request to: " + API_URL + "\nParameters: " + str(params) + "\nHeaders: " + str(headers))
+    print("Sending request to: " + API_URL + "\nParameters: " + str(params) + "\nHeaders: " + str(headers))
     results = requests.get(API_URL, params=params, headers=headers)
     results_json = results.json()
-    log_msg("Received: " + str(results) + "\n" + str(results_json))
+    print("Received: " + str(results) + "\n" + str(results_json))
     return results_json
 
 

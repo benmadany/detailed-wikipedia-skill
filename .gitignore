@@ -103,3 +103,4 @@ ENV/
 *.zip
 bs4/
 lxml/
+.vscode/

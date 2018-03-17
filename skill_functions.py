@@ -25,8 +25,6 @@ def request_article(article):
         summary = wiki.get_content(article)
         print("Retrieving article categories:")
         categories = wiki.parse_sections(article)
-        for category in categories:
-            subheading, index, depth = category
         results = (summary, categories)
         print(results)
         return results
