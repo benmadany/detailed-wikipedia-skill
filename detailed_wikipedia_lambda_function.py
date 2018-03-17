@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import skill_functions
+from traceback import format_exc
 
 
 # --------------- Helpers that build all of the responses ----------------------
@@ -27,6 +28,12 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session):
         },
         'shouldEndSession': should_end_session
     }
+
+
+def build_delegate_response(updated_intent=None):
+    return {'directives': [
+        {'type': 'Dialog.Delegate'}
+    ]}
 
 
 def build_response(session_attributes, speechlet_response):
@@ -66,14 +73,14 @@ def handle_session_end_request():
 
 
 def handle_error(error, msg=None):
-    print(error)
+    print(format_exc())
     card_title = "Error Encountered"
     speech_output = msg if msg else "I'm sorry, I encountered an error and can't complete your request."
     should_end_session = True
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
 
 
-def start_research(intent, session):
+def article_intent(intent, session):
     card_title = "Article Request"
     should_end_session = False
 
@@ -92,10 +99,54 @@ def start_research(intent, session):
             speech_output = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
             reprompt_text = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
     else:
-        # TODO: If this slot is required will this ever be reached?
+        # TODO: If this slot is required will this ever be reached now that dialog delegation is used?
         speech_output = "Impossible"
         reprompt_text = None
         should_end_session = True
+    return build_response(session['attributes'], build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+
+def summary_intent(intent, session):
+    card_title = "Categories"
+    should_end_session = False
+
+    if 'Article' in intent['slots']:
+        article = intent['slots']['Article']['value'] # TODO: key error on summary request without article
+        session['attributes']['requested_article'] = article
+        suggested_article = skill_functions.request_suggestion(article)
+        session['attributes']['article'] = suggested_article
+        summary, categories = skill_functions.request_article(suggested_article)
+    else:
+        summary, categories = skill_functions.request_article(session['attributes']['article'])
+    session['attributes']['summary'] = summary
+    session['attributes']['categories'] = categories
+    
+    speech_output = summary + " ... Would you like me to read more?"
+    reprompt_text = "Would you like me to read more?"
+
+    return build_response(session['attributes'], build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+
+def category_intent(intent, session):
+    card_title = "Categories"
+    should_end_session = False
+
+    if 'Article' in intent['slots']:
+        article = intent['slots']['Article']['value']
+        session['attributes']['requested_article'] = article
+        suggested_article = skill_functions.request_suggestion(article)
+        session['attributes']['article'] = suggested_article
+        summary, categories = skill_functions.request_article(suggested_article)
+    else:
+        summary, categories = skill_functions.request_article(session['attributes']['article'])
+    session['attributes']['summary'] = summary
+    session['attributes']['categories'] = categories
+    
+    speech_output = categories + " ... Which category would you like me to read?"
+    reprompt_text = "Which category would you like me to read?"
+
     return build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
@@ -123,7 +174,16 @@ def on_intent(intent_request, session):
 
     # Dispatch to your skill's intent handlers
     if intent_name == 'RequestArticleIntent':
-        return start_research(intent, session)
+        dialog_state = intent_request['dialogState']
+        print("on_intent dialogState=" + dialog_state)
+        if dialog_state != 'COMPLETED':
+            return build_response({}, build_delegate_response())
+        else:
+            return article_intent(intent, session)
+    elif intent_name == 'RequestSummaryIntent':
+        return summary_intent(intent, session)
+    elif intent_name == 'RequestCategoriesIntent':
+        return category_intent(intent, session)
     elif intent_name == 'AMAZON.HelpIntent':
         return get_welcome_response(True)
     elif intent_name == 'AMAZON.CancelIntent' or intent_name == 'AMAZON.StopIntent':

@@ -11,12 +11,10 @@ def request_suggestion(topic):
         print("Retrieving suggestion for topic: " + topic)
         title = wiki.prefix_search(topic)
         print("Suggested article: " + str(title))
-        return title
-    except wiki.GenericWikipediaException as wiki_error:
-        print("Wikipedia Exception: " + wiki_error)
-    except:
-        print(format_exc())
-    return None
+        return title 
+    except Exception as e:
+        print(format_exc)
+        raise e
 
 
 def request_article(article):
@@ -28,11 +26,9 @@ def request_article(article):
         results = (summary, categories)
         print(results)
         return results
-    except wiki.GenericWikipediaException as wiki_error:
-        print("Wikipedia Exception: " + wiki_error)
-    except:
-        print(format_exc())
-    return None
+    except Exception as e:
+        print(format_exc)
+        raise e
 
 
 def request_section(article, section):
@@ -41,8 +37,6 @@ def request_section(article, section):
         content = wiki.get_content(article, section=section)
         print("Retrieved content:\n" + content)
         return content
-    except wiki.GenericWikipediaException as wiki_error:
-        print("Wikipedia Exception: " + wiki_error)
-    except:
-        print(format_exc())
-    return None
+    except Exception as e:
+        print(format_exc)
+        raise e
