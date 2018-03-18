@@ -147,7 +147,7 @@ def send_request(params):
 
 # Uses BeautifulSoup to remove html tags and divs that contain captions or navigation hatnotes since they shouldn't be read
 def remove_html_and_captions(html):
-    soup = BeautifulSoup(html, 'lxml')
+    soup = BeautifulSoup(html, 'html.parser')
     for div in soup.find_all('div', class_=re.compile('(.*caption.*)|(hatnote navigation-not-searchable)|(toc)')):
         div.decompose()
     return soup.text

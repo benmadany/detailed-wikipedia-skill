@@ -90,8 +90,8 @@ def article_intent(intent, session):
         try:
             suggested_article = skill_functions.request_suggestion(article)
             session['attributes']['article'] = suggested_article
-            speech_output = "I found an article titled: " + suggested_article + " on Wikipedia. Would you like its summary, or its categories?"
-            reprompt_text = "I found an article titled: " + suggested_article + " on Wikipedia. Would you like its summary, or its categories?"
+            speech_output = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like its summary, or its categories?"
+            reprompt_text = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like its summary, or its categories?"
         except skill_functions.wiki.PageNotFoundException:
             speech_output = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
             reprompt_text = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
@@ -111,8 +111,8 @@ def summary_intent(intent, session):
     card_title = "Categories"
     should_end_session = False
 
-    if 'Article' in intent['slots']:
-        article = intent['slots']['Article']['value'] # TODO: key error on summary request without article
+    if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
+        article = intent['slots']['Article']['value']
         session['attributes']['requested_article'] = article
         suggested_article = skill_functions.request_suggestion(article)
         session['attributes']['article'] = suggested_article
@@ -121,7 +121,7 @@ def summary_intent(intent, session):
         summary, categories = skill_functions.request_article(session['attributes']['article'])
     session['attributes']['summary'] = summary
     session['attributes']['categories'] = categories
-    
+
     speech_output = summary + " ... Would you like me to read more?"
     reprompt_text = "Would you like me to read more?"
 
@@ -133,7 +133,7 @@ def category_intent(intent, session):
     card_title = "Categories"
     should_end_session = False
 
-    if 'Article' in intent['slots']:
+    if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
         article = intent['slots']['Article']['value']
         session['attributes']['requested_article'] = article
         suggested_article = skill_functions.request_suggestion(article)
@@ -144,7 +144,8 @@ def category_intent(intent, session):
     session['attributes']['summary'] = summary
     session['attributes']['categories'] = categories
     
-    speech_output = categories + " ... Which category would you like me to read?"
+    top_level_categories = [category[0] for category in categories if category[2] == 1]
+    speech_output = "Categories:\n" + ', '.join(top_level_categories) + "\n... Which category would you like me to read?" # TODO: use ssml to introduce pauses
     reprompt_text = "Which category would you like me to read?"
 
     return build_response(session['attributes'], build_speechlet_response(
