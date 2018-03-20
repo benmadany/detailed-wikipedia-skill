@@ -9,11 +9,11 @@ from traceback import format_exc
 
 # --------------- Helpers that build all of the responses ----------------------
 
-def build_speechlet_response(title, output, reprompt_text, should_end_session):
+def build_speechlet_response(title, output, reprompt_text, should_end_session, plaintext=True):
     return {
         'outputSpeech': {
-            'type': 'PlainText',
-            'text': output
+            'type': 'PlainText' if plaintext else 'SSML',
+            'text' if plaintext else 'ssml': output
         },
         'card': {
             'type': 'Simple',
@@ -22,8 +22,8 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session):
         },
         'reprompt': {
             'outputSpeech': {
-                'type': 'PlainText',
-                'text': reprompt_text
+                'type': 'PlainText' if plaintext else 'SSML',
+                'text' if plaintext else 'ssml': reprompt_text
             }
         },
         'shouldEndSession': should_end_session
@@ -65,7 +65,7 @@ def get_welcome_response(help):
 
 def handle_session_end_request():
     card_title = "Goodbye"
-    speech_output = "Thank you for doing research with Detailed Wikipedia. " \
+    speech_output = "Thanks for using Detailed Wikipedia. " \
                     "Have a nice day! "
     should_end_session = True
     return build_response({}, build_speechlet_response(
@@ -90,8 +90,8 @@ def article_intent(intent, session):
         try:
             suggested_article = skill_functions.request_suggestion(article)
             session['attributes']['article'] = suggested_article
-            speech_output = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like its summary, or its categories?"
-            reprompt_text = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like its summary, or its categories?"
+            speech_output = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
+            reprompt_text = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
         except skill_functions.wiki.PageNotFoundException:
             speech_output = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
             reprompt_text = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
@@ -122,11 +122,11 @@ def summary_intent(intent, session):
     session['attributes']['summary'] = summary
     session['attributes']['categories'] = categories
 
-    speech_output = summary + " ... Would you like me to read more?"
-    reprompt_text = "Would you like me to read more?"
+    speech_output = "<speak><p>" + summary + "</p><p>\nWould you like me to read more?</p><speak>"
+    reprompt_text = "<speak>Would you like me to read more?</speak>"
 
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
+        card_title, speech_output, reprompt_text, should_end_session, False))
 
 
 def category_intent(intent, session):
@@ -145,11 +145,11 @@ def category_intent(intent, session):
     session['attributes']['categories'] = categories
     
     top_level_categories = [category[0] for category in categories if category[2] == 1]
-    speech_output = "Categories:\n" + ', '.join(top_level_categories) + "\n... Which category would you like me to read?" # TODO: use ssml to introduce pauses
-    reprompt_text = "Which category would you like me to read?"
+    speech_output = "<speak><p>Categories:\n" + ', '.join(top_level_categories[:-1]) + ", and " + top_level_categories[-1] + "</p><p>\nWhich category would you like me to read?</p></speak>"
+    reprompt_text = "<speak>Which category would you like me to read?</speak>"
 
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
+        card_title, speech_output, reprompt_text, should_end_session, False))
 
 
 # --------------- Events ------------------
