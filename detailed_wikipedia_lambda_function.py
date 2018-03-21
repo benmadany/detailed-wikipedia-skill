@@ -111,18 +111,24 @@ def summary_intent(intent, session):
     card_title = "Categories"
     should_end_session = False
 
-    if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
-        article = intent['slots']['Article']['value']
-        session['attributes']['requested_article'] = article
-        suggested_article = skill_functions.request_suggestion(article)
-        session['attributes']['article'] = suggested_article
-        summary, categories = skill_functions.request_article(suggested_article)
+    if 'summary' not in session['attributes'] and 'categories' not in session['attributes']:
+        if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
+            article = intent['slots']['Article']['value']
+            session['attributes']['requested_article'] = article
+            suggested_article = skill_functions.request_suggestion(article)
+            session['attributes']['article'] = suggested_article
+            summary, categories = skill_functions.request_article(suggested_article)
+        else:
+            summary, categories = skill_functions.request_article(session['attributes']['article'])
+        session['attributes']['summary'] = summary
+        session['attributes']['categories'] = categories
+        current_index = 0
+        session['attributes']['current_index'] = current_index
     else:
-        summary, categories = skill_functions.request_article(session['attributes']['article'])
-    session['attributes']['summary'] = summary
-    session['attributes']['categories'] = categories
-
-    speech_output = "<speak><p>" + summary + "</p><p>\nWould you like me to read more?</p><speak>"
+        summary = session['attributes']['summary']
+        categories = session['attributes']['categories']
+        current_index = session['attributes']['current_index']
+    speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
     reprompt_text = "<speak>Would you like me to read more?</speak>"
 
     return build_response(session['attributes'], build_speechlet_response(

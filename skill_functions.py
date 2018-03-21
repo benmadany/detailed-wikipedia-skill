@@ -24,7 +24,7 @@ def request_article(article):
         print("Retrieving article categories:")
         categories = wiki.parse_sections(article)
         categories = [category for category in categories if category[0].lower() != 'image gallery' and category[0].lower() != 'see also' and category[0].lower() != 'references' and category[0].lower() != 'external links']
-        results = (summary, categories)
+        results = (summary.split('\n'), categories)
         print(results)
         return results
     except Exception as e:
@@ -37,7 +37,7 @@ def request_section(article, section):
         print("Retrieving content for: " + article)
         content = wiki.get_content(article, section=section)
         print("Retrieved content:\n" + content)
-        return content
+        return content.split('\n')
     except Exception as e:
         print(format_exc)
         raise e
