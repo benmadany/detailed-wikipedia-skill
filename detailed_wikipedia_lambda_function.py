@@ -36,6 +36,11 @@ def build_delegate_response(updated_intent=None):
     ]}
 
 
+def build_elicit_response(updated_intent):
+    return {'directives': [
+        {'type': 'Dialog.Elicit'} # TODO
+    ]}
+
 def build_response(session_attributes, speechlet_response):
     return {
         'version': '1.0',
@@ -128,6 +133,7 @@ def summary_intent(intent, session):
         summary = session['attributes']['summary']
         categories = session['attributes']['categories']
         current_index = session['attributes']['current_index']
+        # TODO: add state to attributes and implement yes/no intents to allow for reading more (or not)
     speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
     reprompt_text = "<speak>Would you like me to read more?</speak>"
 
@@ -150,6 +156,7 @@ def category_intent(intent, session):
     session['attributes']['summary'] = summary
     session['attributes']['categories'] = categories
     
+    # TODO: Implement Category slot on CategoryIntent for describing category by name or position ex: first, 3, History, etc. then send elicit slot directive
     top_level_categories = [category[0] for category in categories if category[2] == 1]
     speech_output = "<speak><p>Categories:\n" + ', '.join(top_level_categories[:-1]) + ", and " + top_level_categories[-1] + "</p><p>\nWhich category would you like me to read?</p></speak>"
     reprompt_text = "<speak>Which category would you like me to read?</speak>"
