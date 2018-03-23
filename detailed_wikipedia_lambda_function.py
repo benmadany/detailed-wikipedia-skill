@@ -38,7 +38,7 @@ def build_delegate_response(updated_intent=None):
 
 def build_elicit_response(updated_intent):
     return {'directives': [
-        {'type': 'Dialog.Elicit'} # TODO
+        {'type': 'Dialog.Elicit'} # TODO elicit slots for categories and potentially welcome screen -> article immediately
     ]}
 
 def build_response(session_attributes, speechlet_response):

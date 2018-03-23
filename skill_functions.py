@@ -6,6 +6,7 @@ import wiki_requests as wiki
 from traceback import format_exc
 
 
+# Uses the prefixsearch Wikipedia API query to retrieve the top suggestion for a given search query (topic)
 def request_suggestion(topic):
     print("Retrieving suggestion for topic: " + topic)
     title = wiki.prefix_search(topic)
@@ -13,52 +14,21 @@ def request_suggestion(topic):
     return title 
 
 
+# Uses a combination of text extracts and parsing to collect a Wikipedia page's summary and table of contents, then returns a tuple with the summary and filtered toc
 def request_article(article):
     print("Retrieving summary for: " + article)
     summary = wiki.get_content(article)
     print("Retrieving article categories:")
     categories = wiki.parse_sections(article)
     categories = [category for category in categories if category[0].lower() != 'image gallery' and category[0].lower() != 'see also' and category[0].lower() != 'references' and category[0].lower() != 'external links']
-    results = (summary.split('\n'), categories)
-    print(results)
+    results = (summary, categories)
+    print(str(results))
     return results
 
 
+# Uses parsing (or text extracts if no section is given) to collect the raw text of a section of a Wikipedia page, filters out html tags and other notation to present only human readable text
 def request_section(article, section):
     print("Retrieving content for: " + article)
     content = wiki.get_content(article, section=section)
-    print("Retrieved content:\n" + content)
-    return content.split('\n')
-
-
-def split_text(text):
-    max_lines = 13
-    line_split = text.split('\n')
-    results = []
-    current = []
-    i = 0
-    list_set = False
-    while i < len(line_split):
-        chunk = line_split[i]
-        current.append(chunk)
-        if chunk.endswith('.'):
-            if list_set:
-                del current[-1]
-                results.append('\n'.join(current))
-                list_set = False
-                continue
-            lines = chunk.count('. ')
-            if lines > max_lines:
-                if len(current) >= 1:
-                    del current[-1]
-                results.append('\n'.join(current))
-                continue
-        else:
-            if not list_set:
-                del current[-1]
-                results.append('\n'.join(current))
-                continue
-            else:
-                list_set = True
-        i = i + 1
-            
+    print("Retrieved content:\n" + str(content))
+    return content  

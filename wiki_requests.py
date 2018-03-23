@@ -15,6 +15,8 @@ import re
 API_URL = "http://en.wikipedia.org/w/api.php"
 # User Agent that must be specified in headers of requests sent to Wikipedia API
 USER_AGENT = "Detailed Wikipedia Skill (https://github.com/benmadany/detailed-wikipedia-skill)"
+# Max sentences of a text grouping, maximum number of sentences to be read at a time when possible
+MAX_SENTENCES = 9
 
 
 # Generic Exception for errors returned by Wikipedia API
@@ -47,13 +49,6 @@ class PageNotFoundException(Exception):
             return self.__unicode__()
         else:
             return self.__unicode__().encode('utf8')
-
-
-# Utility method to strip extra newlines from text, remove references and links (text surrounded by '[]' or lines beginning with '^'), and remove parentheticals that contain removed references
-def clean_text(text):
-    text = re.sub('(^\^.*$)|(\([^\)]*\[[^\]]*\][^\)]*\)+)|(\[[^\]]*\]\([^\)]*\))|(\[[^\]]*\])', '', text, flags=re.MULTILINE)
-    text = re.sub('(\n{2,})', '\n', text)
-    return text
 
 
 # Creates dict containing common parameters for the Wikipedia API requests that will be made
@@ -130,7 +125,7 @@ def get_content(page, section=None, count=0):
     else:
         content = remove_html_and_captions(results_json['query']['pages'][list(results_json['query']['pages'])[0]]['extract'])
 
-    return clean_text(content)
+    return split_text(clean_text(content))
 
 
 # Sends http request to Wikipedia API returning a dictionary of the retrieved content in json format
@@ -151,3 +146,46 @@ def remove_html_and_captions(html):
     for div in soup.find_all('div', class_=re.compile('(.*caption.*)|(hatnote navigation-not-searchable)|(toc)')):
         div.decompose()
     return soup.text
+
+
+# Utility to strip extra newlines from text, remove references and links (text surrounded by '[]' or lines beginning with '^'), and remove parentheticals that contain removed references
+def clean_text(text):
+    text = re.sub('(^\^.*$)|(\([^\)]*\[[^\]]*\][^\)]*\)+)|(\[[^\]]*\]\([^\)]*\))|(\[[^\]]*\])', '', text, flags=re.MULTILINE)
+    text = re.sub('(\.{2})', '.', text, flags=re.MULTILINE)
+    text = re.sub('(\n{2,})', '\n', text)
+    return text
+
+
+# Utility to split text into list of groupings based on number of sentences, helps with smooth reading
+def split_text(text):
+    line_split = text.split('\n')
+    results = []
+    current = []
+    current_len = 0
+    i = 0
+    list_set = False
+    while i < len(line_split):
+        chunk = line_split[i]
+        if chunk.endswith('.'):
+            if list_set:
+                list_set = False
+                current_len = current_len + 1
+                continue
+            lines = len(re.findall('(\.[\ ]+)|([^\.]\.)', chunk, flags=re.MULTILINE))
+            if lines + current_len > MAX_SENTENCES:
+                if len(current) == 0:
+                    current.append(chunk)
+                results.append('\n'.join(current))
+                current_len = 0
+                current.clear()
+                continue
+            else:
+                current_len = current_len + lines
+                current.append(chunk)
+        else:
+            current.append(chunk)
+            list_set = True
+        i = i + 1
+    if len(current) != 0:
+        results.append('\n'.join(current))
+    return results
