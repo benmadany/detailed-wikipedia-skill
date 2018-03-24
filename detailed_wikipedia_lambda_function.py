@@ -36,10 +36,14 @@ def build_delegate_response(updated_intent=None):
     ]}
 
 
-def build_elicit_response(updated_intent):
-    return {'directives': [
-        {'type': 'Dialog.Elicit'} # TODO elicit slots for categories and potentially welcome screen -> article immediately
-    ]}
+def build_elicit_response(slot_to_elicit, updated_intent):
+    return {
+        'directives': [{
+            'type': 'Dialog.Elicit',
+            'slotToElicit': slot_to_elicit,
+            'updatedIntent': updated_intent
+        }] # TODO elicit slots for categories and potentially welcome screen -> article immediately
+    }
 
 def build_response(session_attributes, speechlet_response):
     return {
@@ -165,6 +169,16 @@ def category_intent(intent, session):
         card_title, speech_output, reprompt_text, should_end_session, False))
 
 
+def yes_intent(intent, session):
+    card_title = "Affirmative"
+    should_end_session = False
+
+
+def no_intent(intent, session):
+    card_title = "No"
+    should_end_session = False
+
+
 # --------------- Events ------------------
 
 def on_session_started(session_started_request, session):
@@ -198,6 +212,10 @@ def on_intent(intent_request, session):
         return summary_intent(intent, session)
     elif intent_name == 'RequestCategoriesIntent':
         return category_intent(intent, session)
+    elif intent_name == 'AMAZON.YesIntent':
+        return yes_intent(intent, session)
+    elif intent_name == 'AMAZON.NoIntent':
+        return no_intent(intent, session)
     elif intent_name == 'AMAZON.HelpIntent':
         return get_welcome_response(True)
     elif intent_name == 'AMAZON.CancelIntent' or intent_name == 'AMAZON.StopIntent':
