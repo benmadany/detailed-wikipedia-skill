@@ -17,8 +17,8 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session, p
         },
         'card': {
             'type': 'Simple',
-            'title': "SessionSpeechlet - " + title,
-            'content': "SessionSpeechlet - " + output
+            'title': title,
+            'content': output
         },
         'reprompt': {
             'outputSpeech': {
@@ -26,7 +26,7 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session, p
                 'text' if plaintext else 'ssml': reprompt_text
             }
         },
-        'shouldEndSession': should_end_session
+        'shouldEndSession': should_end_session        
     }
 
 
@@ -36,14 +36,13 @@ def build_delegate_response(updated_intent=None):
     ]}
 
 
-def build_elicit_response(slot_to_elicit, updated_intent):
-    return {
-        'directives': [{
+def build_elicit_response(slot_to_elicit, updated_intent, speechlet_response):
+    speechlet_response['directives'] = [{
             'type': 'Dialog.Elicit',
             'slotToElicit': slot_to_elicit,
             'updatedIntent': updated_intent
-        }] # TODO elicit slots for categories and potentially welcome screen -> article immediately
-    }
+        }]
+    return speechlet_response
 
 def build_response(session_attributes, speechlet_response):
     return {
@@ -99,6 +98,7 @@ def article_intent(intent, session):
         try:
             suggested_article = skill_functions.request_suggestion(article)
             session['attributes']['article'] = suggested_article
+            session['attributes']['state'] = 'STATE.START'
             speech_output = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
             reprompt_text = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
         except skill_functions.wiki.PageNotFoundException:
@@ -108,16 +108,15 @@ def article_intent(intent, session):
             speech_output = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
             reprompt_text = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
     else:
-        # TODO: If this slot is required will this ever be reached now that dialog delegation is used?
-        speech_output = "Impossible"
-        reprompt_text = None
-        should_end_session = True
+        # If this slot is required will this ever be reached now that dialog delegation is used?
+        # TODO: Raise custom exception
+        raise Exception()
     return build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
 
 def summary_intent(intent, session):
-    card_title = "Categories"
+    card_title = "Summary"
     should_end_session = False
 
     if 'summary' not in session['attributes'] and 'categories' not in session['attributes']:
@@ -135,14 +134,16 @@ def summary_intent(intent, session):
         session['attributes']['current_index'] = current_index
     else:
         summary = session['attributes']['summary']
-        categories = session['attributes']['categories']
         current_index = session['attributes']['current_index']
-        # TODO: add state to attributes and implement yes/no intents to allow for reading more (or not)
     speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
     reprompt_text = "<speak>Would you like me to read more?</speak>"
 
-    return build_response(session['attributes'], build_speechlet_response(
+    session['attributes']['state'] = 'STATE.SUMMARY'
+    
+    response = build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session, False))
+    print("summary_intent response=" + str(response))
+    return response
 
 
 def category_intent(intent, session):
@@ -165,6 +166,8 @@ def category_intent(intent, session):
     speech_output = "<speak><p>Categories:\n" + ', '.join(top_level_categories[:-1]) + ", and " + top_level_categories[-1] + "</p><p>\nWhich category would you like me to read?</p></speak>"
     reprompt_text = "<speak>Which category would you like me to read?</speak>"
 
+    session['attributes']['state'] = 'STATE.CATEGORIES'
+
     return build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session, False))
 
@@ -173,10 +176,34 @@ def yes_intent(intent, session):
     card_title = "Affirmative"
     should_end_session = False
 
+    if session['attributes']['state'] == 'STATE.SUMMARY':
+        summary = session['attributes']['summary']
+        current_index = session['attributes']['current_index']
+        current_index = current_index + 1
+        session['attributes']['current_index'] = current_index
+        if current_index == len(summary) - 1:
+            speech_output = "<speak><p>" + summary[current_index] + "</p><speak>"
+            reprompt_text = None
+            should_end_session = True
+        else:
+            speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
+            reprompt_text = "<speak>Would you like me to read more?</speak>"
+    
+    return build_response(session['attributes'], build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session, False))
+
+
 
 def no_intent(intent, session):
     card_title = "No"
     should_end_session = False
+
+    if session['attributes']['state'] == 'STATE.SUMMARY':
+        speech_output = "Sure."
+        reprompt_text = None
+
+    return build_response(session['attributes'], build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session, False))
 
 
 # --------------- Events ------------------

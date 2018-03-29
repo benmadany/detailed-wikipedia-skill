@@ -20,7 +20,8 @@ def request_article(article):
     summary = wiki.get_content(article)
     print("Retrieving article categories:")
     categories = wiki.parse_sections(article)
-    categories = [category for category in categories if category[0].lower() != 'image gallery' and category[0].lower() != 'see also' and category[0].lower() != 'references' and category[0].lower() != 'external links']
+    categories = [category for category in categories
+    if category[0].lower() != 'image gallery' and category[0].lower() != 'see also' and category[0].lower() != 'references' and category[0].lower() != 'external links' and category[0].lower() != 'further reading']
     results = (summary, categories)
     print(str(results))
     return results
