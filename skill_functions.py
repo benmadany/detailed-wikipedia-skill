@@ -3,7 +3,6 @@
 
 
 import wiki_requests as wiki
-from traceback import format_exc
 
 
 # Uses the prefixsearch Wikipedia API query to retrieve the top suggestion for a given search query (topic)

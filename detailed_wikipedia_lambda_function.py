@@ -3,11 +3,13 @@
 
 
 from __future__ import print_function
-import skill_functions
 from traceback import format_exc
+from random import choice
+import skill_functions
+import static
 
 
-# --------------- Helpers that build all of the responses ----------------------
+# --------------- Response JSON constructors ----------------------
 
 def build_speechlet_response(title, output, reprompt_text, should_end_session, plaintext=True):
     return {
@@ -30,12 +32,6 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session, p
     }
 
 
-def build_delegate_response(updated_intent=None):
-    return {'directives': [
-        {'type': 'Dialog.Delegate'}
-    ]}
-
-
 def build_elicit_response(slot_to_elicit, updated_intent, speechlet_response):
     speechlet_response['directives'] = [{
             'type': 'Dialog.Elicit',
@@ -43,6 +39,13 @@ def build_elicit_response(slot_to_elicit, updated_intent, speechlet_response):
             'updatedIntent': updated_intent
         }]
     return speechlet_response
+
+
+def build_delegate_response(updated_intent=None):
+    return {'directives': [
+        {'type': 'Dialog.Delegate'}
+    ]}
+
 
 def build_response(session_attributes, speechlet_response):
     return {
@@ -52,21 +55,42 @@ def build_response(session_attributes, speechlet_response):
     }
 
 
-# --------------- Functions that control the skill's behavior ------------------
+# --------------- Utility functions ------------------
+
+
+def select(prompts):
+    return choice(prompts)
+    
+
+def generate_reading_response(session):
+    # TODO: Implement this helper
+    return
+
+
+# --------------- Error handlers ------------------
+
+
+def handle_error(error, msg=None):
+    print(format_exc())
+    card_title = "Error Encountered"
+    speech_output = msg if msg else select(static.error_prompts)
+    should_end_session = True
+    return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
+
+# --------------- Intent and other skill functions ------------------
+
 
 def get_welcome_response(help):
     should_end_session = False
     if not help:
         card_title = "Welcome"
-        speech_output = "Welcome to Detailed Wikipedia. Please tell me what you would like to find information on."
-        reprompt_text = "Please tell me what article you would like information on by saying something like, get info on Stephen Hawking."
+        speech_output = static.welcome_message
+        reprompt_text = static.welcome_reprompt
     else:
         card_title = "Help"
-        speech_output = "You can use this skill to find information on any topic on Wikipedia. " \
-        "When you know what you want to research, ask me, and I'll help you get specific information about that topic or sub-categories of its Wikipedia page. " \
-        "For example, you can ask me about info related to Stephen Hawking, and I'll ask if you want a summary or a list of possible sub-categories from his page, such as publications."
-        reprompt_text = "I can help you get specific information about that topic or sub-categories of its Wikipedia page. " \
-        "For example, you can ask me about info related to Stephen Hawking, and I'll ask if you want a summary or a list of possible sub-categories from his page, such as publications."
+        speech_output = static.help_message
+        reprompt_text = static.help_reprompt
     return build_response({}, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
@@ -80,14 +104,6 @@ def handle_session_end_request():
         card_title, speech_output, None, should_end_session))
 
 
-def handle_error(error, msg=None):
-    print(format_exc())
-    card_title = "Error Encountered"
-    speech_output = msg if msg else "I'm sorry, I encountered an error and can't complete your request."
-    should_end_session = True
-    return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
-
-
 def article_intent(intent, session):
     card_title = "Article Request"
     should_end_session = False
@@ -99,18 +115,18 @@ def article_intent(intent, session):
             suggested_article = skill_functions.request_suggestion(article)
             session['attributes']['article'] = suggested_article
             session['attributes']['state'] = 'STATE.START'
-            speech_output = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
-            reprompt_text = "I found an article titled: " + suggested_article + ", on Wikipedia. Would you like the summary, or its categories?"
+            speech_output = select(static.found_article_prompts).format(suggested_article)
+            reprompt_text = select(static.found_article_prompts).format(suggested_article)
         except skill_functions.wiki.PageNotFoundException:
-            speech_output = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
-            reprompt_text = "I'm sorry, I was unable to find an article matching your request on Wikipedia. Feel free to try again by saying something like, get info on Stephen Hawking."
+            speech_output = select(static.page_not_found_prompts)
+            reprompt_text = select(static.page_not_found_prompts)
         except skill_functions.wiki.GenericWikipediaException:
-            speech_output = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
-            reprompt_text = "I'm sorry, I encountered an error while talking to Wikipedia and was unable to complete your request. Feel free to try again by saying something like, get info on Stephen Hawking."
+            speech_output = select(static.wikipedia_exception_prompts)
+            reprompt_text = select(static.wikipedia_exception_prompts)
     else:
         # If this slot is required will this ever be reached now that dialog delegation is used?
         # TODO: Raise custom exception
-        raise Exception()
+        raise Exception("Unreachable")
     return build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
@@ -135,6 +151,7 @@ def summary_intent(intent, session):
     else:
         summary = session['attributes']['summary']
         current_index = session['attributes']['current_index']
+    # TODO: Implement utility method to determine speech output and follow up state/question
     speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
     reprompt_text = "<speak>Would you like me to read more?</speak>"
 
@@ -176,6 +193,7 @@ def yes_intent(intent, session):
     card_title = "Affirmative"
     should_end_session = False
 
+    # TODO: Update this to use new states and the reading response utility method for reading sections
     if session['attributes']['state'] == 'STATE.SUMMARY':
         summary = session['attributes']['summary']
         current_index = session['attributes']['current_index']
@@ -206,7 +224,7 @@ def no_intent(intent, session):
         card_title, speech_output, reprompt_text, should_end_session, False))
 
 
-# --------------- Events ------------------
+# --------------- Event handlers ------------------
 
 def on_session_started(session_started_request, session):
     print("on_session_started requestId=" + session_started_request['requestId']
