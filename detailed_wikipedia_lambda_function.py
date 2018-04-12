@@ -11,7 +11,7 @@ import static
 
 # --------------- Response JSON constructors ----------------------
 
-def build_speechlet_response(title, output, reprompt_text, should_end_session, plaintext=True):
+def build_speechlet_response(title, output, reprompt_output, should_end_session, plaintext=True):
     return {
         'outputSpeech': {
             'type': 'PlainText' if plaintext else 'SSML',
@@ -25,7 +25,7 @@ def build_speechlet_response(title, output, reprompt_text, should_end_session, p
         'reprompt': {
             'outputSpeech': {
                 'type': 'PlainText' if plaintext else 'SSML',
-                'text' if plaintext else 'ssml': reprompt_text
+                'text' if plaintext else 'ssml': reprompt_output
             }
         },
         'shouldEndSession': should_end_session        
@@ -62,9 +62,21 @@ def select(prompts):
     return choice(prompts)
     
 
-def generate_reading_response(session):
-    # TODO: Implement this helper
-    return
+def generate_reading_output(session):
+    current_reading = session['attributes']['current_reading']
+    current_index = session['attributes']['current_index']
+    text = "<p>" + current_reading[current_index]  + "</p>"
+    max_index = len(current_reading) - 1
+    if current_index == max_index:
+        prompt = "<p>\nIs there anything else you would like to search for?</p>" # TODO: select from set of prompts
+        session['attributes']['state'] = static.waiting
+    else:
+        prompt = "<p>\nWould you like me to read more?</p>"
+        session['attributes']['state'] = static.reading
+        session['attributes']['current_index'] = current_index + 1
+    speech_output = "<speak>" + text + prompt + "</speak>"
+    reprompt_output = "<speak>" + prompt + "</speak>"
+    return speech_output, reprompt_output
 
 
 # --------------- Error handlers ------------------
@@ -86,13 +98,13 @@ def get_welcome_response(help):
     if not help:
         card_title = "Welcome"
         speech_output = static.welcome_message
-        reprompt_text = static.welcome_reprompt
+        reprompt_output = static.welcome_reprompt
     else:
         card_title = "Help"
         speech_output = static.help_message
-        reprompt_text = static.help_reprompt
+        reprompt_output = static.help_reprompt
     return build_response({}, build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
+        card_title, speech_output, reprompt_output, should_end_session))
 
 
 def handle_session_end_request():
@@ -116,49 +128,43 @@ def article_intent(intent, session):
             session['attributes']['article'] = suggested_article
             session['attributes']['state'] = 'STATE.START'
             speech_output = select(static.found_article_prompts).format(suggested_article)
-            reprompt_text = select(static.found_article_prompts).format(suggested_article)
+            reprompt_output = select(static.found_article_prompts).format(suggested_article)
         except skill_functions.wiki.PageNotFoundException:
             speech_output = select(static.page_not_found_prompts)
-            reprompt_text = select(static.page_not_found_prompts)
+            reprompt_output = select(static.page_not_found_prompts)
         except skill_functions.wiki.GenericWikipediaException:
             speech_output = select(static.wikipedia_exception_prompts)
-            reprompt_text = select(static.wikipedia_exception_prompts)
+            reprompt_output = select(static.wikipedia_exception_prompts)
     else:
         # If this slot is required will this ever be reached now that dialog delegation is used?
         # TODO: Raise custom exception
         raise Exception("Unreachable")
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
+        card_title, speech_output, reprompt_output, should_end_session))
 
 
 def summary_intent(intent, session):
     card_title = "Summary"
     should_end_session = False
 
-    if 'summary' not in session['attributes'] and 'categories' not in session['attributes']:
-        if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
-            article = intent['slots']['Article']['value']
-            session['attributes']['requested_article'] = article
-            suggested_article = skill_functions.request_suggestion(article)
-            session['attributes']['article'] = suggested_article
-            summary, categories = skill_functions.request_article(suggested_article)
-        else:
-            summary, categories = skill_functions.request_article(session['attributes']['article'])
-        session['attributes']['summary'] = summary
-        session['attributes']['categories'] = categories
-        current_index = 0
-        session['attributes']['current_index'] = current_index
+    if 'Article' in intent['slots'] and 'value' in intent['slots']['Article']:
+        article = intent['slots']['Article']['value']
+        session['attributes']['requested_article'] = article
+        suggested_article = skill_functions.request_suggestion(article)
+        session['attributes']['article'] = suggested_article
+        summary, categories = skill_functions.request_article(suggested_article)
     else:
-        summary = session['attributes']['summary']
-        current_index = session['attributes']['current_index']
-    # TODO: Implement utility method to determine speech output and follow up state/question
-    speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
-    reprompt_text = "<speak>Would you like me to read more?</speak>"
+        summary, categories = skill_functions.request_article(session['attributes']['article'])
+    session['attributes']['summary'] = summary
+    session['attributes']['categories'] = categories
+    current_index = 0
+    session['attributes']['current_index'] = current_index
+    session['attributes']['current_reading'] = summary
 
-    session['attributes']['state'] = 'STATE.SUMMARY'
+    speech_output, reprompt_output = generate_reading_output(session)
     
     response = build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session, False))
+        card_title, speech_output, reprompt_output, should_end_session, False))
     print("summary_intent response=" + str(response))
     return response
 
@@ -181,34 +187,22 @@ def category_intent(intent, session):
     # TODO: Implement Category slot on CategoryIntent for describing category by name or position ex: first, 3, History, etc. then send elicit slot directive
     top_level_categories = [category[0] for category in categories if category[2] == 1]
     speech_output = "<speak><p>Categories:\n" + ', '.join(top_level_categories[:-1]) + ", and " + top_level_categories[-1] + "</p><p>\nWhich category would you like me to read?</p></speak>"
-    reprompt_text = "<speak>Which category would you like me to read?</speak>"
+    reprompt_output = "<speak>Which category would you like me to read?</speak>"
 
     session['attributes']['state'] = 'STATE.CATEGORIES'
 
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session, False))
+        card_title, speech_output, reprompt_output, should_end_session, False))
 
 
 def yes_intent(intent, session):
     card_title = "Affirmative"
     should_end_session = False
-
-    # TODO: Update this to use new states and the reading response utility method for reading sections
-    if session['attributes']['state'] == 'STATE.SUMMARY':
-        summary = session['attributes']['summary']
-        current_index = session['attributes']['current_index']
-        current_index = current_index + 1
-        session['attributes']['current_index'] = current_index
-        if current_index == len(summary) - 1:
-            speech_output = "<speak><p>" + summary[current_index] + "</p><speak>"
-            reprompt_text = None
-            should_end_session = True
-        else:
-            speech_output = "<speak><p>" + summary[current_index] + "</p><p>\nWould you like me to read more?</p><speak>"
-            reprompt_text = "<speak>Would you like me to read more?</speak>"
+    # TODO: Improve logging
+    speech_output, reprompt_output = generate_reading_output(session)
     
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session, False))
+        card_title, speech_output, reprompt_output, should_end_session, False))
 
 
 
@@ -218,10 +212,10 @@ def no_intent(intent, session):
 
     if session['attributes']['state'] == 'STATE.SUMMARY':
         speech_output = "Sure."
-        reprompt_text = None
+        reprompt_output = None
 
     return build_response(session['attributes'], build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session, False))
+        card_title, speech_output, reprompt_output, should_end_session, False))
 
 
 # --------------- Event handlers ------------------
@@ -241,6 +235,7 @@ def on_launch(launch_request, session):
 def on_intent(intent_request, session):
     print("on_intent requestId=" + intent_request['requestId'] +
           ", sessionId=" + session['sessionId'] + " sessionAttributes=" + str(session['attributes']))
+    # TODO: Improve logging
 
     intent = intent_request['intent']
     intent_name = intent_request['intent']['name']

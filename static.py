@@ -4,7 +4,6 @@
 
 # Skill States
 reading = 'reading'
-rpause = 'rpause'
 waiting = 'waiting'
 
 

@@ -16,7 +16,7 @@ API_URL = "http://en.wikipedia.org/w/api.php"
 # User Agent that must be specified in headers of requests sent to Wikipedia API
 USER_AGENT = "Detailed Wikipedia Skill (https://github.com/benmadany/detailed-wikipedia-skill)"
 # Max sentences of a text grouping, maximum number of sentences to be read at a time when possible
-MAX_SENTENCES = 9
+MAX_SENTENCES = 7
 
 
 # Generic Exception for errors returned by Wikipedia API
