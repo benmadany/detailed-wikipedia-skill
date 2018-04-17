@@ -68,13 +68,13 @@ def generate_reading_output(session):
     text = "<p>" + current_reading[current_index]  + "</p>"
     max_index = len(current_reading) - 1
     if current_index == max_index:
-        prompt = "<p>\nIs there anything else you would like to search for?</p>" # TODO: select from set of prompts
+        prompt = "<p>" + select(static.waiting_prompts) + "</p>"
         session['attributes']['state'] = static.waiting
     else:
-        prompt = "<p>\nWould you like me to read more?</p>"
+        prompt = "<p>" + select(static.reading_prompts) + "</p>"
         session['attributes']['state'] = static.reading
         session['attributes']['current_index'] = current_index + 1
-    speech_output = "<speak>" + text + prompt + "</speak>"
+    speech_output = "<speak>" + text + "\n" + prompt + "</speak>"
     reprompt_output = "<speak>" + prompt + "</speak>"
     return speech_output, reprompt_output
 
@@ -85,7 +85,7 @@ def generate_reading_output(session):
 def handle_error(error, msg=None):
     print(format_exc())
     card_title = "Error Encountered"
-    speech_output = msg if msg else select(static.error_prompts)
+    speech_output = msg if msg else select(static.error_messages)
     should_end_session = True
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
 
@@ -109,8 +109,7 @@ def get_welcome_response(help):
 
 def handle_session_end_request():
     card_title = "Goodbye"
-    speech_output = "Thanks for using Detailed Wikipedia. " \
-                    "Have a nice day! "
+    speech_output = select(static.session_end_messages)
     should_end_session = True
     return build_response({}, build_speechlet_response(
         card_title, speech_output, None, should_end_session))
@@ -130,11 +129,11 @@ def article_intent(intent, session):
             speech_output = select(static.found_article_prompts).format(suggested_article)
             reprompt_output = select(static.found_article_prompts).format(suggested_article)
         except skill_functions.wiki.PageNotFoundException:
-            speech_output = select(static.page_not_found_prompts)
-            reprompt_output = select(static.page_not_found_prompts)
+            speech_output = select(static.page_not_found_messages)
+            reprompt_output = select(static.page_not_found_messages)
         except skill_functions.wiki.GenericWikipediaException:
-            speech_output = select(static.wikipedia_exception_prompts)
-            reprompt_output = select(static.wikipedia_exception_prompts)
+            speech_output = select(static.wikipedia_exception_messages)
+            reprompt_output = select(static.wikipedia_exception_messages)
     else:
         # If this slot is required will this ever be reached now that dialog delegation is used?
         # TODO: Raise custom exception
@@ -203,7 +202,6 @@ def yes_intent(intent, session):
     
     return build_response(session['attributes'], build_speechlet_response(
         card_title, speech_output, reprompt_output, should_end_session, False))
-
 
 
 def no_intent(intent, session):
